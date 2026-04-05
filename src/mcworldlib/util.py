@@ -9,6 +9,18 @@ Exported items:
     PosXZ -- Class representing a (x, z)    2D position coordinate, inherits from NamedTuple
 """
 
+import enum
+import functools
+import io
+import os.path
+import platform
+import pprint
+import time
+import typing as t
+import collections.abc as abc
+
+import numpy
+
 __all__ = [
     'MINECRAFT_SAVES_DIR',
     'MCError',
@@ -24,18 +36,6 @@ __all__ = [
     'pretty',
 ]
 
-import enum
-import functools
-import io
-import os.path
-import platform
-import pprint
-import time
-import typing as t
-
-import numpy
-
-
 # platform-dependent minecraft directory paths
 if platform.system() == 'Windows':
     MINECRAFT_SAVES_DIR: str = os.path.expanduser('~/AppData/Roaming/.minecraft/saves')
@@ -47,24 +47,24 @@ CHUNK_SIZE = (16, 16)  # (X, Z) blocks in each chunk
 SECTION_HEIGHT = 16    # chunk section height in blocks
 
 # General type aliases
-AnyPath = t.Union[str, os.PathLike]
-AnyFile = t.Union[AnyPath, t.BinaryIO]
+AnyPath = str | os.PathLike
+AnyFile = AnyPath | t.BinaryIO
 
 # Pos stuff...
 NumT = t.TypeVar('NumT', int, float)
-TPos:   't.TypeAlias' = t.Tuple[NumT, ...]            # Any 2D/3D *Pos
-TPos2D: 't.TypeAlias' = t.Tuple[int, int]             # FlatPos, ChunkPos, etc
-TPos3D: 't.TypeAlias' = t.Tuple[float, float, float]  # Pos
+TPos:   't.TypeAlias' = tuple[NumT, ...]            # Any 2D/3D *Pos
+TPos2D: 't.TypeAlias' = tuple[int, int]             # FlatPos, ChunkPos, etc
+TPos3D: 't.TypeAlias' = tuple[float, float, float]  # Pos
 
 # Somewhat general, but mostly used only by LazyLoadMap
 T = t.TypeVar('T')
 KT = t.TypeVar('KT', bound=t.Hashable)
 VT = t.TypeVar('VT')
 Pos2DT = t.TypeVar('Pos2DT', bound=TPos2D)
-LazyFileT = t.Union[AnyPath, VT]
+LazyFileT = AnyPath | VT
 
 # To avoid importing nbt
-CompoundT = t.Dict[str, VT]
+CompoundT = dict[str, VT]
 
 
 class MCError(Exception):
@@ -120,7 +120,7 @@ class BasePos(TPos):
         return ".".join(map(str, self))
 
     @staticmethod
-    def from_xz_tags(cls, parent: CompoundT[int], suffix: str = 'Pos') -> 'TPos2D':
+    def from_xz_tags(cls, parent: CompoundT[int], suffix: str = 'Pos') -> TPos2D:
         """Read from an NBT Compound containing x<suffix> and z<suffix> coord tags"""
         # tag: nbt.Compound[str, nbt.Int]
         # Not worth parametrizing ('x', 'z') for now
@@ -132,16 +132,16 @@ class BasePos(TPos):
 
     @staticmethod  # actually classmethod
     def from_array_tag(cls,
-                       tag: CompoundT[t.Iterable[NumT]],
+                       tag: CompoundT[abc.Iterable[NumT]],
                        name: str = 'Position',
-                       cast: t.Callable[[t.Any], NumT] = int) -> 'TPos':
+                       cast: abc.Callable[[t.Any], NumT] = int) -> TPos:
         """Read from an NBT Compound <tag> containing a coords List/Array tag named <name>"""
         # tag: nbt.Compound[str, nbt.IntArray]
         # https://github.com/JetBrains/intellij-community/pull/1655
         # noinspection PyTypeChecker
         return cls(*map(cast, tag[name]))
 
-    def __repr__(self, width: t.Union[int, t.Iterable[int]] = 3) -> str:
+    def __repr__(self, width: int | abc.Iterable[int] = 3) -> str:
         # Example usage:
         # __repr__ = functools.partialmethod(BasePos.__repr__, width=2)
         # If this ever becomes a true superclass, convert width to class attribute
@@ -255,29 +255,29 @@ class ChunkPos(t.NamedTuple):  # TPos2D
         return RegionPos(*(c // g for c, g in zip(self, CHUNK_GRID)))
 
     @property
-    def region_and_offset(self) -> t.Tuple[RegionPos, 'ChunkPos']:
+    def region_and_offset(self) -> tuple[RegionPos, 'ChunkPos']:
         """((rx, rz), (cxr, czr)) region and chunk offset coordinates of this chunk"""
         region, chunk = zip(*(divmod(c, g) for c, g in zip(self, CHUNK_GRID)))
         return RegionPos(*region), self.__class__(*chunk)
 
 
-class LazyLoadMap(t.MutableMapping[KT, VT]):
+class LazyLoadMap(abc.MutableMapping[KT, VT]):
     """Mapping of objects lazily loaded on access"""
     __slots__ = (
         '_items',
     )
     collective: str = 'items'  # Collective noun for the items, used in __repr__()
 
-    def __init__(self, items: t.Optional['LazyLoadMap'] = None) -> None:
+    def __init__(self, items: 'LazyLoadMap | None' = None) -> None:
         # As implementations use KT=TPos2D, no benefit in allowing **kwargs
-        self._items: t.Dict[KT, VT] = {}
+        self._items: dict[KT, VT] = {}
         if items is not None:
             self._items.update(items)
 
     def _is_loaded(self, key: KT, item: VT) -> bool:
         raise NotImplementedError
 
-    def _load_item(self, key: KT, item: VT) -> t.Optional[t.Tuple[KT, VT]]:
+    def _load_item(self, key: KT, item: VT) -> tuple[KT, VT] | None:
         raise NotImplementedError
 
     def __getitem__(self, key: KT) -> VT:
@@ -314,7 +314,7 @@ class LazyLoadFileMap(LazyLoadMap[Pos2DT, LazyFileT]):
     def _is_loaded(self, key: Pos2DT, item: LazyFileT) -> bool:
         raise NotImplementedError
 
-    def _load_item(self, key: Pos2DT, item: AnyPath) -> t.Optional[t.Tuple[Pos2DT, VT]]:
+    def _load_item(self, key: Pos2DT, item: AnyPath) -> tuple[Pos2DT, VT] | None:
         raise NotImplementedError
 
 

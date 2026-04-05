@@ -1,16 +1,36 @@
-# To perform editable (development) install:
-# pip3 install --user --no-build-isolation -e .
-# setup.py is not needed in this scenario
-# There might have better alternatives. Try combinations of:
-# python3 -m build, remove pyproject.toml (this file), add setup.py shim,
-#   pip --no-use-pep517, comment-out build-backend here, ...
-# ... or just give up and use poetry.
+[project]
+name = "mcworldlib"
+version = "2026.1"
+description = "Yet another python library to manipulate Minecraft save data"
+readme = "README.md"
+requires-python = ">=3.14"
+authors = [
+    { name = "Rodrigo Silva (MestreLion)", email = "minecraft@rodrigosilva.com" }
+]
+license = { text = "GPL-3.0-or-later" }
+keywords = ["minecraft", "save", "nbt", "chunk", "region", "world", "library"]
+classifiers = [
+    "Development Status :: 1 - Planning",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)",
+    "Natural Language :: English",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.14",
+    "Topic :: Games/Entertainment",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+]
+dependencies = [
+    "nbtlib<2",
+    "numpy>=2",
+    "tqdm",
+]
 
-# See https://github.com/pypa/pip/issues/7953
+[project.urls]
+"Bug Tracker" = "https://github.com/MestreLion/mcworldlib/issues"
+"Source Code" = "https://github.com/MestreLion/mcworldlib"
 
 [build-system]
-requires = [
-	"setuptools>=42.0.0",  # Support license_files
-	"wheel"
-]
-build-backend = "setuptools.build_meta"
+requires = ["uv_build>=0.9.8,<0.10.0"]
+build-backend = "uv_build"

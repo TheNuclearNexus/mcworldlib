@@ -8,7 +8,7 @@ Exported items:
     Chunk -- Class representing a Chunk's NBT, inherits from ntb.Root
 """
 
-__all__ = ['Chunk']
+from __future__ import annotations
 
 import numpy
 import typing as t
@@ -17,7 +17,9 @@ from . import nbt
 from . import entity
 from . import util as u
 
-T = t.TypeVar('T', bound='Chunk')
+__all__ = ["Chunk"]
+
+T = t.TypeVar("T", bound="Chunk")
 
 
 # TODO: create an nbt.Schema for it
@@ -25,10 +27,12 @@ class Chunk(nbt.Root):
     __slots__ = ()
 
     BS_MIN_BITS = 4  # BlockState index minimum bits
-    BS_INDEXES = u.CHUNK_SIZE[0] * u.CHUNK_SIZE[1] * u.SECTION_HEIGHT  # 16 * 16 * 16 = 4096
+    BS_INDEXES = (
+        u.CHUNK_SIZE[0] * u.CHUNK_SIZE[1] * u.SECTION_HEIGHT
+    )  # 16 * 16 * 16 = 4096
 
     @classmethod
-    def parse(cls: t.Type[T], *args, **kwargs) -> T:
+    def parse(cls: type[T], *args, **kwargs) -> T:
         # noinspection PyTypeChecker
         self: T = super().parse(*args, **kwargs)
         # In Entities Lists, replace plain Compound with an Entity (subclass) instance
@@ -38,19 +42,17 @@ class Chunk(nbt.Root):
 
     @property
     def entities(self):
-        return self.data_root.get('Entities', None)
+        return self.data_root.get("Entities", None)
 
     @entities.setter
     def entities(self, value: nbt.List[nbt.Compound]):
-        self.data_root['Entities'] = value
-
+        self.data_root["Entities"] = value
 
     def is_version_1_21(self):
         if "sections" in self.data_root:
             return True
         else:
             return False
-
 
     def get_blocks_1_21(self):
         """Yield a (Y, palette, block_states Indexes Array) tuple for every chunk section.
@@ -59,9 +61,9 @@ class Chunk(nbt.Root):
         palette, Indexes: See get_section_blocks()
         """
         blocks = {}
-        for section in self.data_root['sections']:
+        for section in self.data_root["sections"]:
             # noinspection PyPep8Naming
-            Y = int(section['Y'])
+            Y = int(section["Y"])
             palette, indexes = self.get_section_blocks(Y, _section=section)
             if palette:
                 blocks[Y] = palette, indexes
@@ -69,19 +71,18 @@ class Chunk(nbt.Root):
             # noinspection PyRedundantParentheses
             yield (Y, *blocks[Y])
 
-
     def get_blocks_old(self):
         """For version lower than 1.21.1
-        
+
         Yield a (Y, Palette, BlockState Indexes Array) tuple for every chunk section.
 
         Y: Y "level" of the section, the section "index" (NOT the NBT section index!)
         Palette, Indexes: See get_section_blocks()
         """
         blocks = {}
-        for section in self.data_root['Sections']:
+        for section in self.data_root["Sections"]:
             # noinspection PyPep8Naming
-            Y = int(section['Y'])
+            Y = int(section["Y"])
             palette, indexes = self.get_section_blocks(Y, _section=section)
             if palette:
                 blocks[Y] = palette, indexes
@@ -89,20 +90,17 @@ class Chunk(nbt.Root):
             # noinspection PyRedundantParentheses
             yield (Y, *blocks[Y])
 
-    
     def get_blocks(self):
         if self.is_version_1_21():
             return self.get_blocks_1_21()
         else:
             return self.get_blocks_old()
 
-
     def get_section_blocks(self, Y: int, _section=None):
         if self.is_version_1_21():
             return self.get_section_blocks_1_21(Y, _section)
         else:
             return self.get_section_blocks_old(Y, _section)
-
 
     # noinspection PyPep8Naming
     def get_section_blocks_1_21(self, Y: int, _section=None):
@@ -113,25 +111,24 @@ class Chunk(nbt.Root):
         """
         section = _section
         if not section:
-            for section in self.data_root.get('sections', []):
-                if section.get('Y') == Y:
+            for section in self.data_root.get("sections", []):
+                if section.get("Y") == Y:
                     break
             else:
                 return None, None
 
-        if 'block_states' not in section:
+        if "block_states" not in section:
             return None, None
 
-        states = section['block_states']
+        states = section["block_states"]
 
-        palette = states['palette']
+        palette = states["palette"]
 
-        if 'data' not in states:
+        if "data" not in states:
             return palette, numpy.zeros((u.SECTION_HEIGHT, *reversed(u.CHUNK_SIZE)))
 
-        indexes = self._decode_blockstates(states['data'], palette)
+        indexes = self._decode_blockstates(states["data"], palette)
         return palette, indexes.reshape((u.SECTION_HEIGHT, *reversed(u.CHUNK_SIZE)))
-    
 
     def get_section_blocks_old(self, Y: int, _section=None):
         """For version lower than 1.21.1
@@ -143,19 +140,18 @@ class Chunk(nbt.Root):
         """
         section = _section
         if not section:
-            for section in self.data_root.get('Sections', []):
-                if section.get('Y') == Y:
+            for section in self.data_root.get("Sections", []):
+                if section.get("Y") == Y:
                     break
             else:
                 return None, None
 
-        if 'Palette' not in section or 'BlockStates' not in section:
+        if "Palette" not in section or "BlockStates" not in section:
             return None, None
 
-        palette = section['Palette']
-        indexes = self._decode_blockstates(section['BlockStates'], palette)
+        palette = section["Palette"]
+        indexes = self._decode_blockstates(section["BlockStates"], palette)
         return palette, indexes.reshape((u.SECTION_HEIGHT, *reversed(u.CHUNK_SIZE)))
-
 
     def _decode_blockstates(self, data, palette=None):
         """Decode an NBT BlockStates LongArray to a block state indexes array"""
@@ -163,13 +159,17 @@ class Chunk(nbt.Root):
 
         def bits_per_index():
             """the size required to represent the largest index (minimum of 4 bits)"""
-            def bits_from_data(): return len(data) * pack_bits // self.BS_INDEXES
+
+            def bits_from_data():
+                return len(data) * pack_bits // self.BS_INDEXES
+
             if not palette:
                 # Infer from data length (not the way described by Wiki!)
                 return bits_from_data()
             bit_length = max(self.BS_MIN_BITS, (len(palette) - 1).bit_length())
-            assert bit_length == bits_from_data(), \
+            assert bit_length == bits_from_data(), (
                 f"BlockState bits mismatch: {bit_length} != {bits_from_data()}"
+            )
             return bit_length
 
         bits = bits_per_index()
@@ -179,8 +179,13 @@ class Chunk(nbt.Root):
         indexes = numpy.packbits(
             numpy.pad(
                 numpy.unpackbits(
-                        data[::-1].astype(f">i{pack_bits//8}").view(f"uint{pack_bits//8}").unpack()
-                    ).reshape(-1, 64)[:, padding_per_long:64].reshape(-1, bits),
+                    data[::-1]
+                    .astype(f">i{pack_bits // 8}")
+                    .view(f"uint{pack_bits // 8}")
+                    .unpack()
+                )
+                .reshape(-1, 64)[:, padding_per_long:64]
+                .reshape(-1, bits),
                 [(0, 0), (pack_bits - bits, 0)],
                 "constant",
             )
@@ -198,7 +203,7 @@ class Chunk(nbt.Root):
         array = data.astype(">q")
         bits_per_entry = max(int(numpy.amax(array)).bit_length(), 2)
         return numpy.packbits(
-            numpy.unpackbits(numpy.ascontiguousarray(array[::-1]).view("uint8")).reshape(
-                -1, 64
-            )[:, -bits_per_entry:]
+            numpy.unpackbits(
+                numpy.ascontiguousarray(array[::-1]).view("uint8")
+            ).reshape(-1, 64)[:, -bits_per_entry:]
         ).view(dtype=">q")[::-1]

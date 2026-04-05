@@ -1,3 +1,4 @@
+
 # This file is part of MCWorldLib
 # Copyright (C) 2021 Rodrigo Silva (MestreLion) <linux@rodrigosilva.com>
 # License: GPLv3 or later, at your choice. See <http://www.gnu.org/licenses/gpl>
@@ -23,30 +24,36 @@ via []. Sequences and Mappings are, Sequences having their integer index as key.
 Sets can be cast to Sequence to satisfy this.
 """
 
+from __future__ import annotations
+from collections.abc import (
+    ByteString,
+    Callable,
+    Collection,
+    Iterable,
+    Iterator,
+    Mapping,
+    Sequence,
+)
+from typing import Any, Hashable, NamedTuple
+
+from . import nbt
+
 __all__ = [
     "Item",
     "walk",
     "print_tree",
     "print_walk",
 ]
-from collections.abc import Collection, Sequence, Mapping, ByteString
-from typing import (
-    Callable, Tuple, Any, Iterator, Hashable, Union, NamedTuple, Iterable, Optional
-)
-import typing as t  # for Collection, Sequence and TypeAlias (Python 3.8+)
-
-from . import nbt
-
 
 # This non-sensical typing is just to illustrate the concepts
 # The inability to have leaf elements is the main reason `str` is not a Container
-Leaf:       't.TypeAlias' = Any  # Non-container, scalar, single value, etc
-Element:    't.TypeAlias' = Union[Leaf, 'Container']
-Key:        't.TypeAlias' = Hashable  # For Sequences, always an int index
-Container:  't.TypeAlias' = t.Collection[Element]
+type Leaf = Any  # Non-container, scalar, single value, etc
+type Element = Leaf | Container
+type Key = Hashable  # For Sequences, always an int index
+type Container = Collection[Element]
 
 
-def basic_iter(container: Container) -> Iterable[Tuple[Key, Element]]:
+def basic_iter(container: Container) -> Iterable[tuple[Key, Element]]:
     """General use (key, element) iterable for containers.
 
     Handles Mappings via .items(), otherwise use enumerate().
@@ -64,7 +71,7 @@ def basic_container(v: Element) -> bool:
     return isinstance(v, Collection) and not isinstance(v, (str, ByteString))
 
 
-def get_element(root: Container, keys: t.Sequence[Key]) -> Element:
+def get_element(root: Container, keys: Sequence[Key]) -> Element:
     """Retrieve an element from a deeply nested root container"""
     if not keys:
         return root
@@ -75,22 +82,22 @@ def get_element(root: Container, keys: t.Sequence[Key]) -> Element:
 
 
 class Item(NamedTuple):
-    element:   Element
-    keys:      t.Sequence[Key]
-    idx:       int
+    element: Element
+    keys: Sequence[Key]
+    idx: int
     container: bool
-    pruned:    bool
-    parent:    Container
-    root:      Container
+    pruned: bool
+    parent: Container
+    root: Container
 
 
 def walk(
-    element:        Container,
-    to_prune:       Callable[[Element], bool]  = None,
-    iter_container: Callable[[Container], Iterable[Tuple[Key, Element]]] = basic_iter,
-    is_container:   Callable[[Element], bool] = basic_container,
-    _keys:          Tuple = (),
-    _root:          Container = None,
+    element: Container,
+    to_prune: Callable[[Element], bool] | None = None,
+    iter_container: Callable[[Container], Iterable[tuple[Key, Element]]] = basic_iter,
+    is_container: Callable[[Element], bool] = basic_container,
+    _keys: tuple = (),
+    _root: Container | None = None,
 ) -> Iterator[Item]:
     if _root is None:
         # Root area
@@ -123,13 +130,20 @@ def walk(
             )
 
 
-def print_tree(root: Container, *, width: int = 2, line_offset: int = 0,
-               show_root_as: Any = None, indent_first_gen: bool = True,
-               noun_plural: str = "items", noun_singular: str = "item",
-               fmt_container: str = "{length} {noun}",
-               fmt_leaf: str = "{item.element}",
-               do_print: bool = True,
-               iterator: Iterator[Item] = None) -> Optional[str]:
+def print_tree(
+    root: Container,
+    *,
+    width: int = 2,
+    line_offset: int = 0,
+    show_root_as: Any = None,
+    indent_first_gen: bool = True,
+    noun_plural: str = "items",
+    noun_singular: str = "item",
+    fmt_container: str = "{length} {noun}",
+    fmt_leaf: str = "{item.element}",
+    do_print: bool = True,
+    iterator: Iterator[Item] | None = None,
+) -> str | None:
     # Useful symbols: │┊⦙ ├ └╰ ┐╮ ─┈ ┬⊟⊞ ⊕⊖⊙⊗⊘
     margin = ""
     previous = 0
@@ -144,10 +158,10 @@ def print_tree(root: Container, *, width: int = 2, line_offset: int = 0,
             level -= 1
         siblings = len(item.parent)
         idx_width = len(str(siblings - 1))
-        last  = item.idx == siblings - 1
+        last = item.idx == siblings - 1
         prefix = (("╰" if last else "├") + ("─" * width)) if level > 0 else ""
         if level < previous:
-            margin = margin[:-(width + 1 + line_offset) * (previous - level)]
+            margin = margin[: -(width + 1 + line_offset) * (previous - level)]
         if item.container:
             length = len(item.element)
             expanded = not item.pruned and length > 0
@@ -157,10 +171,13 @@ def print_tree(root: Container, *, width: int = 2, line_offset: int = 0,
             expanded = False
             noun = noun_singular
         marker = (
-            "⊟" if expanded  else
-            "⊕" if item.pruned else
-            "⊞" if item.container else
-            "─"  # leaf
+            "⊟"
+            if expanded
+            else "⊕"
+            if item.pruned
+            else "⊞"
+            if item.container
+            else "─"  # leaf
         )
         value = (fmt_container if item.container else fmt_leaf).format(**locals())
         line = f"{margin}{prefix}{marker} {item.keys[-1]:{idx_width}}: {value}"
@@ -170,50 +187,61 @@ def print_tree(root: Container, *, width: int = 2, line_offset: int = 0,
             lines.append(line)
         previous = level
         if expanded and level > 0:
-            margin += ((" " if last else "│") + " " * (width + line_offset))
+            margin += (" " if last else "│") + " " * (width + line_offset)
     if not do_print:
         return "\n".join(lines)
 
 
 def print_walk(root):
     """Simple visualizer for data yielded from walk"""
-    print("\n".join("\t" * (len(_.keys) - 1) +
-                    ".".join(map(str, _.keys)) +
-                    ": " + (f"{len(_.element)} elements"
-                            if _.container else repr(_.element))
-                    for _ in walk(root)))
+    print(
+        "\n".join(
+            "\t" * (len(_.keys) - 1)
+            + ".".join(map(str, _.keys))
+            + ": "
+            + (f"{len(_.element)} elements" if _.container else repr(_.element))
+            for _ in walk(root)
+        )
+    )
 
 
 # ----------------------------------
 # Specialized walkers
 
-def iter_nbt(sort_key: t.Callable[[t.Tuple[str, 'nbt.AnyTag']], t.Any] = None):
-    def _iter_nbt(tag: Collection) -> Iterable[Tuple['nbt.TagKey', 'nbt.AnyTag']]:
+
+def iter_nbt(sort_key: Callable[[tuple[str, nbt.AnyTag]], Any] | None = None):
+    def _iter_nbt(tag: Collection) -> Iterable[tuple[nbt.TagKey, nbt.AnyTag]]:
         if isinstance(tag, nbt.Compound):
             itertags = tag.items()
             if sort_key is None:
                 return itertags
             return sorted(itertags, key=sort_key)
         return enumerate(tag)
+
     return _iter_nbt
     # Wow, 4 de-indenting returns in a row!!! Have you ever seen that?
 
 
-def is_nbt_container(tag: 'nbt.AnyTag') -> bool:
+def is_nbt_container(tag: nbt.AnyTag) -> bool:
     # noinspection PyUnresolvedReferences
     return not tag.is_leaf
 
 
 # ----------------------------------
 
+
 def tests():
     import json
+
     for data in (
-        json.load(open("data/New World/advancements/"
-                       "8b4accb8-d952-4050-97f2-e00c4423ba92.json")),
+        json.load(
+            open(
+                "data/New World/advancements/8b4accb8-d952-4050-97f2-e00c4423ba92.json"
+            )
+        ),
         nbt.load_dat("data/New World/level.dat"),
         [{"x": 1, "y": 2}, "a", ((4, {"z": 5}, "b"), 6, "c")],
-        {"name": ["Rodrigo", ("E", "S"), "Silva"], "alias": "MestreLion"}
+        {"name": ["Rodrigo", ("E", "S"), "Silva"], "alias": "MestreLion"},
     ):
         print("=" * 70)
         print_walk(data)

@@ -11,10 +11,10 @@ Wraps whatever library is used as backend, currently nbtlib
 # and all the ones defined here
 
 # Delete ALL imported and declared names not meant for export, see the end of file
-import io      as _io
-import logging as _logging
-import typing  as t
-import zlib    as _zlib
+import io
+import logging
+from typing import Any, NamedTuple, TypeVar, Callable, Iterator
+import zlib
 
 # TODO: (and suggest to nbtlib)
 # - Auto-casting value to tag on assignment based on current type
@@ -31,47 +31,62 @@ from nbtlib.tag import (
     write_string as _write_string,
 )
 
-from nbtlib.tag import *
-from nbtlib.tag import Array  # Not in __all__, but used by others
+from nbtlib.tag import (
+    Array as Array,
+    Base as Base,
+    Byte as Byte,
+    ByteArray as ByteArray,
+    CastError as CastError,
+    Compound as Compound,
+    Double as Double,
+    End as End,
+    EndInstantiation as EndInstantiation,
+    Float as Float,
+    IncompatibleItemType as IncompatibleItemType,
+    Int as Int,
+    IntArray as IntArray,
+    List as List,
+    Long as Long,
+    LongArray as LongArray,
+    Numeric as Numeric,
+    NumericInteger as NumericInteger,
+    OutOfRange as OutOfRange,
+    Short as Short,
+    String as String,
+)
 from nbtlib.nbt import File as _File  # intentionally not importing load
 from nbtlib.path import Path
 from nbtlib.literal.serializer import serialize_tag as _serialize_tag
 
 from . import tree as _tree
 
-_log = _logging.getLogger(__name__)
+_log = logging.getLogger(__name__)
 
 # Concrete and (meant to be) instantiable tags, i.e. no Base, Numeric, End, etc
-AnyTag: 't.TypeAlias' = t.Union[
-    Byte,
-    Short,
-    Int,
-    Long,
-    Float,
-    Double,
-    ByteArray,
-    String,
-    List,
-    Compound,
-    IntArray,
-    LongArray,
-]
-ContainerTag: 't.TypeAlias' = t.Union[
-    List,
-    Compound,
-    Array,
-]
-TagKey: 't.TypeAlias' = t.Union[str, int]
+type AnyTag = (
+    Byte
+    | Short
+    | Int
+    | Long
+    | Float
+    | Double
+    | ByteArray
+    | String
+    | List
+    | Compound
+    | IntArray
+    | LongArray
+)
+type ContainerTag = List | Compound | Array
+type TagKey = str | int
 
-RT = t.TypeVar('RT', bound='Root')
+RT = TypeVar("RT", bound="Root")
 
 
 class Root(Compound):
     """Unnamed Compound tag, the root tag in files and chunks"""
 
-    __slots__ = (
-        'root_name',
-    )
+    __slots__ = ("root_name",)
 
     def __init__(self, *args, root_name: str = "", **kwargs):
         super().__init__(*args, **kwargs)
@@ -99,8 +114,8 @@ class Root(Compound):
         return self._data_root[0]
 
     @property
-    def _data_root(self) -> t.Tuple[str, Compound]:
-        tags = self.keys() - {'DataVersion'}
+    def _data_root(self) -> tuple[str, Compound]:
+        tags = self.keys() - {"DataVersion"}
         if not len(tags) == 1:
             return "", self
         name = next(iter(tags))
@@ -110,7 +125,7 @@ class Root(Compound):
     # Copy parse() and write() methods from _File
 
     @classmethod
-    def parse(cls: t.Type[RT], fileobj, byteorder='big') -> RT:
+    def parse(cls: type[RT], fileobj, byteorder="big") -> RT:
         """Override :meth:`nbtlib.tag.Base.parse` for nbt files."""
         # For the typing dance, see https://stackoverflow.com/a/44644576/624066
         tag_id = _read_numeric(_BYTE, fileobj, byteorder)
@@ -137,10 +152,11 @@ class Root(Compound):
         if key:
             key = f" ({len(data)} in {key!r})"
         name = f" {self.root_name!r}" if self.root_name else ""
-        return f'<{self.__class__.__name__}{name} tags: {len(self)}{key}>'
+        return f"<{self.__class__.__name__}{name} tags: {len(self)}{key}>"
 
 
 # Overrides and extensions
+
 
 class File(Root, _File):
     # Lame overload so it inherits from Root
@@ -153,8 +169,8 @@ class File(Root, _File):
 
     @classmethod
     def load_mcc(cls, filename):
-        with open(filename, 'rb') as buff:
-            data = _io.BytesIO(_zlib.decompress(buff.read()))
+        with open(filename, "rb") as buff:
+            data = io.BytesIO(zlib.decompress(buff.read()))
         self = cls.parse(data)
         self.filename = filename
         return self
@@ -164,23 +180,24 @@ class File(Root, _File):
         return super().__repr__().replace(f"<{name}", f"<{name} {self.filename!r}", 1)
 
 
-class FQTag(t.NamedTuple):
+class FQTag(NamedTuple):
     """Fully qualified Tag, as yielded by the walk family of functions.
 
     See deep_walk() for the description of each member.
     """
-    tag:          AnyTag
-    path:         Path
-    key:          TagKey
-    idx:          int
+
+    tag: AnyTag
+    path: Path
+    key: TagKey
+    idx: int
     is_container: bool
     is_collapsed: bool
-    level:        int
-    parent:       ContainerTag
-    root:         ContainerTag
+    level: int
+    parent: ContainerTag
+    root: ContainerTag
 
 
-def walk(root: AnyTag, sort: bool = False) -> t.Iterator[FQTag]:
+def walk(root: AnyTag, sort: bool = False) -> Iterator[FQTag]:
     """deep_walk() wrapper with different defaults
 
     Only walk into Compound, List of Compound, and Lists of List. Any other tag,
@@ -192,20 +209,22 @@ def walk(root: AnyTag, sort: bool = False) -> t.Iterator[FQTag]:
     """
     yield from deep_walk(
         root,
-        collapse=lambda tag: (not isinstance(tag, (List[List], List[Compound]))
-                              and isinstance(tag, (Array, List))),
+        collapse=lambda tag: (
+            not isinstance(tag, (List[List], List[Compound]))
+            and isinstance(tag, (Array, List))
+        ),
         key_sorted=str.lower if sort else None,
     )
 
 
 def deep_walk(
-    root:       AnyTag,
-    key_sorted: t.Callable[[t.Tuple[str, AnyTag]], t.Any] = None,  # SupportsLessThan
-    collapse:   t.Callable[[AnyTag], bool]  = None,
-    _path:      Path = Path(),
-    _level:     int = 0,  # == len(path)
-    _root:      ContainerTag = None,
-) -> t.Iterator[FQTag]:
+    root: AnyTag,
+    key_sorted: Callable[[tuple[str, AnyTag]], Any] = None,  # SupportsLessThan
+    collapse: Callable[[AnyTag], bool] = None,
+    _path: Path = Path(),
+    _level: int = 0,  # == len(path)
+    _root: ContainerTag = None,
+) -> Iterator[FQTag]:
     """Yield a data tuple about each child of a root container tag, recursively.
 
     Yielded tuple contains the following information:
@@ -248,15 +267,15 @@ def deep_walk(
         is_container=_tree.is_nbt_container,
     ):
         yield FQTag(
-            tag          = data.element,
-            path         = _tree.get_element(Path(), data.keys[:-1]),  # Clever, but inefficient
-            key          = data.keys[-1],  # noqa, Hashable is too broad for KeyType
-            idx          = data.idx,
-            is_container = data.container,
-            is_collapsed = data.pruned,
-            level        = len(data.keys) - 1,
-            parent       = data.parent,  # noqa, Collection is too broad for CompountType
-            root         = data.root,    # noqa, same reason
+            tag=data.element,
+            path=_tree.get_element(Path(), data.keys[:-1]),  # Clever, but inefficient
+            key=data.keys[-1],  # noqa, Hashable is too broad for KeyType
+            idx=data.idx,
+            is_container=data.container,
+            is_collapsed=data.pruned,
+            level=len(data.keys) - 1,
+            parent=data.parent,  # noqa, Collection is too broad for CompountType
+            root=data.root,  # noqa, same reason
         )
 
 
@@ -268,6 +287,7 @@ def nbt_explorer(root: AnyTag, root_name: str = None, width: int = 2) -> None:
     - Include item count for Compounds, Lists and Arrays
     - Arrays collapsed as leaves
     """
+
     def sort_key(item):
         return (
             # if "not" looks confusing, remember False comes before True when sorting
@@ -276,6 +296,7 @@ def nbt_explorer(root: AnyTag, root_name: str = None, width: int = 2) -> None:
             isinstance(item[1], Array),
             item[0].lower(),
         )
+
     iterator = _tree.walk(
         root,
         to_prune=lambda _: isinstance(_, Array),
@@ -285,7 +306,8 @@ def nbt_explorer(root: AnyTag, root_name: str = None, width: int = 2) -> None:
     _tree.print_tree(
         (),
         iterator=iterator,
-        noun_plural="entries", noun_singular="entry",
+        noun_plural="entries",
+        noun_singular="entry",
         fmt_container="{length} {noun}",
         show_root_as=root_name,
         width=width,
@@ -299,14 +321,9 @@ Base.pretty = lambda self, indent=4: _serialize_tag(self, indent=indent)
 Base.is_leaf = property(
     fget=lambda _: not isinstance(_, (Compound, List, Array)),
     doc="If this tag an immutable tag and not a Mutable Collection."
-        " Non-leaves are the containers excluding String: Compound, List, Array")
-
-# Remove _File methods copied to Root so super() calls from File works properly
-del _File.parse
-del _File.write
+    " Non-leaves are the containers excluding String: Compound, List, Array",
+)
 
 # Convenience shortcuts
 load_mcc = File.load_mcc
 load_dat = File.load
-
-del t

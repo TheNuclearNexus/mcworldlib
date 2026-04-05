@@ -17,22 +17,24 @@
 
 """Yet another python library to manipulate Minecraft save data"""
 
-from .anvil  import *
-from .chunk  import *
-from .cli    import *
-from .level  import *
-from .nbt    import *
-from .tree   import Item, print_tree, walk as walk_data
-from .world  import *
-from .util   import *
+from .anvil import *  # noqa: F403
+from .chunk import *  # noqa: F403
+from .cli import *  # noqa: F403
+from .level import *  # noqa: F403
+from .nbt import *  # noqa: F403
+from .tree import Item, print_tree, walk as walk_data  # noqa: F401
+from .world import *  # noqa: F403
+from .util import *  # noqa: F403
 
 # TODO: Change setup.cfg so it reads here instead of duplicating values!
-__title__       = "mcworldlib"
-__project__     = "MCWorldLib: Minecraft World Library"  # unused in setup.cfg
-__description__ = "Yet another python library to manipulate Minecraft save data"  # __doc__
-__author__      = "Rodrigo Silva (MestreLion)"
-__email__       = "minecraft@rodrigosilva.com"
-__version__     = '0.2021.10'
+__title__ = "mcworldlib"
+__project__ = "MCWorldLib: Minecraft World Library"  # unused in setup.cfg
+__description__ = (
+    "Yet another python library to manipulate Minecraft save data"  # __doc__
+)
+__author__ = "Rodrigo Silva (MestreLion)"
+__email__ = "minecraft@rodrigosilva.com"
+__version__ = "0.2021.10"
 
 # Renaming stuff for the API
 walk_nbt = walk  # from .nbt
