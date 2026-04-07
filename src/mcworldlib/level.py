@@ -14,8 +14,6 @@ import typing as t
 from . import nbt
 from . import player
 
-from . import world
-
 __all__ = ["Level"]
 
 
@@ -34,17 +32,14 @@ class Level(nbt.File):
 
     def __init__(self, *args, world=None, **kwargs):
         super().__init__(*args, **kwargs)
-        self.world: "world.World | None" = world
+        self.world = world
 
     @property
-    def player(self) -> player.Player|None:
+    def player(self) -> nbt.Compound:
         return self.data_root[self._paths["player"]]
 
     @player.setter
-    def player(self, value: player.Player|nbt.Compound):
-        if isinstance(value, nbt.Compound):
-            value = player.Player(value, level=self)
-
+    def player(self, value: nbt.Compound):
         self.data_root[self._paths["player"]] = value
 
     @classmethod
