@@ -47,7 +47,6 @@ class Player(nbt.File):
     def load(cls, path: u.AnyPath, **kwargs):
         with open(path, "rb") as buff:
             player = super().load(buff, gzipped=True, **kwargs)
-            player.filename = Path(path).name
 
         return player
 
