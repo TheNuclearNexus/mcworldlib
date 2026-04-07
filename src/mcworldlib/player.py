@@ -19,12 +19,11 @@ __all__ = ["Player"]
 
 
 class Player(nbt.File):
-    __slots__ = ("name", "level", "filename")
+    __slots__ = ("name", "level")
 
     def __init__(self, *args, name="Player", level=None, **kwargs):
         super().__init__(*args, **kwargs)
         self.name = name
-        self.filename = None
         self.level: "level.Level | None" = level
 
     @property
