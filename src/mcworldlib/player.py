@@ -18,7 +18,7 @@ from . import level
 __all__ = ["Player"]
 
 
-class Player(nbt.File):
+class Player(nbt.Compound):
     __slots__ = ("name", "level")
 
     def __init__(self, *args, name="Player", level=None, **kwargs):
@@ -43,6 +43,7 @@ class Player(nbt.File):
             self["Pos"], u.Dimension.from_nbt(self["Dimension"])
         )
 
+class PlayerFile(Player, nbt.File):
     @classmethod
     def load(cls, path: u.AnyPath, **kwargs):
         with open(path, "rb") as buff:

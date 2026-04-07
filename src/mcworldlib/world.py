@@ -77,14 +77,14 @@ class World:
         *,
         levelobj: level.Level | None = None,
         dimensions: dict | None = None,
-        players: list[p.Player] | None = None
+        players: list[p.PlayerFile] | None = None
     ):
         self.path: u.AnyPath | None = path
         self.level: level.Level | None = levelobj
         self.dimensions: dict[u.Dimension, dict[str, anvil.Regions]] = dict(
             dimensions or {}
         )
-        self._players: list[p.Player] | None = players
+        self._players: list[p.PlayerFile] | None = players
 
     @property
     def name(self) -> str:
@@ -119,7 +119,7 @@ class World:
         return self.level.player if self.level else None
     
     @property
-    def players(self) -> list[p.Player] | None:
+    def players(self) -> list[p.PlayerFile] | None:
         """All Players"""
         return self._players
 
@@ -290,7 +290,7 @@ class World:
 
         self._players = []
         for player in (self.path / "playerdata").glob("*.dat"):
-            self._players.append(p.Player.load(player))
+            self._players.append(p.PlayerFile.load(player))
 
         return self
 
