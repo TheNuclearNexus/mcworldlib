@@ -15,7 +15,7 @@ from . import util as u
 __all__ = ["Player"]
 
 
-class Player(nbt.Compound):
+class Player(nbt.File):
     __slots__ = ("name", "level")
 
     def __init__(self, *args, name="Player", level=None, **kwargs):
@@ -43,6 +43,6 @@ class Player(nbt.Compound):
     @classmethod
     def load(cls, path: u.AnyPath, **kwargs):
         with open(path, "rb") as buff:
-            return super().parse(buff, **kwargs)
+            return super().load(buff, gzipped=True, **kwargs)
 
    
