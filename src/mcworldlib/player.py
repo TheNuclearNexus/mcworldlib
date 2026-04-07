@@ -8,20 +8,24 @@ Exported items:
     Player -- Class representing a player
 """
 
+from pathlib import Path
+
 from . import nbt
 from . import util as u
+from . import level
 
 
 __all__ = ["Player"]
 
 
 class Player(nbt.File):
-    __slots__ = ("name", "level")
+    __slots__ = ("name", "level", "filename")
 
     def __init__(self, *args, name="Player", level=None, **kwargs):
         super().__init__(*args, **kwargs)
         self.name = name
-        self.level = level
+        self.filename = None
+        self.level: "level.Level | None" = level
 
     @property
     def inventory(self) -> nbt.List[nbt.Compound]:
@@ -43,6 +47,18 @@ class Player(nbt.File):
     @classmethod
     def load(cls, path: u.AnyPath, **kwargs):
         with open(path, "rb") as buff:
-            return super().load(buff, gzipped=True, **kwargs)
+            player = super().load(buff, gzipped=True, **kwargs)
+            player.filename = Path(path).name
 
-   
+        return player
+
+    def save(self, filename=None, *, gzipped=None, byteorder=None):
+        if (
+            not filename
+            and self.level
+            and self.level.world
+            and self.level.world.path
+            and self.filename
+        ):
+            filename = Path(self.level.world.path) / "playerdata" / self.filename
+        return super().save(filename, gzipped=gzipped, byteorder=byteorder)
