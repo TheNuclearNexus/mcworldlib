@@ -15,7 +15,7 @@ from . import util as u
 from . import level
 
 
-__all__ = ["Player"]
+__all__ = ["Player", "PlayerFile"]
 
 
 class Player(nbt.Compound):
@@ -43,7 +43,30 @@ class Player(nbt.Compound):
             self["Pos"], u.Dimension.from_nbt(self["Dimension"])
         )
 
-class PlayerFile(Player, nbt.File):
+class PlayerFile(nbt.File):
+    __slots__ = ("name", "level")
+
+    def __init__(self, *args, level=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.level: "level.Level | None" = level
+
+    @property
+    def inventory(self) -> nbt.List[nbt.Compound]:
+        return self["Inventory"]
+
+    @inventory.setter
+    def inventory(self, value: nbt.List[nbt.Compound]):
+        self["Inventory"] = value
+
+    def get_chunk(self):
+        """The chunk containing the player location"""
+        if not (self.level and self.level.world):
+            return None
+
+        return self.level.world.get_chunk_at(
+            self["Pos"], u.Dimension.from_nbt(self["Dimension"])
+        )
+    
     @classmethod
     def load(cls, path: u.AnyPath, **kwargs):
         with open(path, "rb") as buff:
