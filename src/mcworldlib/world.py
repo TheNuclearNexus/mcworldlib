@@ -64,7 +64,7 @@ class World:
         "path",
         "dimensions",
         "level",
-        "players",
+        "_players",
     )
 
     # A.K.A. Dimension subdirs
@@ -84,7 +84,7 @@ class World:
         self.dimensions: dict[u.Dimension, dict[str, anvil.Regions]] = dict(
             dimensions or {}
         )
-        self.players: list[p.Player] | None = None
+        self._players: list[p.Player] | None = players
 
     @property
     def name(self) -> str:
@@ -121,7 +121,7 @@ class World:
     @property
     def players(self) -> list[p.Player] | None:
         """All Players"""
-        return self.players
+        return self._players
 
     @property
     def chunk_count(self):  # FIXME!
@@ -288,9 +288,9 @@ class World:
 
         # ...
 
-        self.players = [self.level.player] if self.level.player else []
+        self._players = [self.level.player] if self.level.player else []
         for player in (self.path / "playerdata").glob("*.dat"):
-            self.players.append(p.Player.load(player))
+            self._players.append(p.Player.load(player))
 
         return self
 
