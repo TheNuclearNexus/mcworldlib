@@ -35,11 +35,14 @@ class Level(nbt.File):
         self.world = world
 
     @property
-    def player(self) -> nbt.Compound:
+    def player(self) -> player.Player|None:
         return self.data_root[self._paths["player"]]
 
     @player.setter
-    def player(self, value: nbt.Compound):
+    def player(self, value: player.Player|nbt.Compound):
+        if isinstance(value, nbt.Compound):
+            value = player.Player(value, level=self)
+
         self.data_root[self._paths["player"]] = value
 
     @classmethod

@@ -22,6 +22,7 @@ from . import anvil
 from . import level
 from . import nbt
 from . import util as u
+from . import player as p
 
 __all__ = [
     "OVERWORLD",
@@ -63,6 +64,7 @@ class World:
         "path",
         "dimensions",
         "level",
+        "players",
     )
 
     # A.K.A. Dimension subdirs
@@ -74,13 +76,15 @@ class World:
         path: u.AnyPath | None = None,
         *,
         levelobj: level.Level | None = None,
-        dimensions: dict = None,
+        dimensions: dict | None = None,
+        players: list[p.Player] | None = None
     ):
         self.path: u.AnyPath | None = path
         self.level: level.Level | None = levelobj
         self.dimensions: dict[u.Dimension, dict[str, anvil.Regions]] = dict(
             dimensions or {}
         )
+        self.players: list[p.Player] | None = None
 
     @property
     def name(self) -> str:
@@ -110,9 +114,14 @@ class World:
         return self._category_dict("poi")
 
     @property
-    def player(self):
+    def player(self) -> p.Player | None:
         """The Single Player"""
-        return self.level.player
+        return self.level.player if self.level else None
+    
+    @property
+    def players(self) -> list[p.Player] | None:
+        """All Players"""
+        return self.players
 
     @property
     def chunk_count(self):  # FIXME!
@@ -278,6 +287,10 @@ class World:
                 )
 
         # ...
+
+        self.players = [self.level.player] if self.level.player else []
+        for player in (self.path / "playerdata").glob("*.dat"):
+            self.players.append(p.Player.load(player))
 
         return self
 

@@ -39,3 +39,10 @@ class Player(nbt.Compound):
         return self.level.world.get_chunk_at(
             self["Pos"], u.Dimension.from_nbt(self["Dimension"])
         )
+
+    @classmethod
+    def load(cls, path: u.AnyPath, **kwargs):
+        with open(path, "rb") as buff:
+            return super().parse(buff, **kwargs)
+
+   
