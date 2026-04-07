@@ -45,6 +45,9 @@ class Level(nbt.File):
     @classmethod
     def load(cls, filename, **kwargs):
         return super().load(filename, gzipped=True, byteorder="big", **kwargs)
+    
+    def save(self, filename, **kwargs):
+        return super().save(filename, gzipped=True, byteorder="big", **kwargs)
 
     @classmethod
     def parse(cls: type[T], buff, *args, world=None, **kwargs) -> T:
