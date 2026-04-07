@@ -288,7 +288,7 @@ class World:
 
         # ...
 
-        self._players = [self.level.player] if self.level.player else []
+        self._players = []
         for player in (self.path / "playerdata").glob("*.dat"):
             self._players.append(p.Player.load(player))
 
