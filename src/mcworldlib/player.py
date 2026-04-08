@@ -42,7 +42,7 @@ class Player(nbt.Compound):
             return None
 
         return self.level.world.get_chunk_at(
-            self["Pos"], u.Dimension.from_nbt(self["Dimension"])
+            self["Pos"], self["Dimension"]
         )
 
 class PlayerFile(nbtlib.File):
@@ -54,11 +54,11 @@ class PlayerFile(nbtlib.File):
 
     @property
     def inventory(self) -> nbt.List[nbt.Compound]:
-        return self["Inventory"]
+        return self.root["Inventory"]
 
     @inventory.setter
     def inventory(self, value: nbt.List[nbt.Compound]):
-        self["Inventory"] = value
+        self.root["Inventory"] = value
 
     def get_chunk(self):
         """The chunk containing the player location"""
@@ -66,7 +66,7 @@ class PlayerFile(nbtlib.File):
             return None
 
         return self.level.world.get_chunk_at(
-            self["Pos"], u.Dimension.from_nbt(self["Dimension"])
+            self.root["Pos"], self.root["Dimension"]
         )
     
     @classmethod
@@ -84,6 +84,10 @@ class PlayerFile(nbtlib.File):
             and self.level.world.path
             and self.filename
         ):
-            filename = Path(self.level.world.path) / "playerdata" / self.filename
+            if self.root.get("DataVersion", 0) < u.DATA_VERSION_26_1:
+                filename = Path(self.level.world.path) / "playerdata" / self.filename
+            else:
+                filename = Path(self.level.world.path) / "players" / "data" / self.filename
+
         return super().save(filename, gzipped=gzipped, byteorder=byteorder)
 

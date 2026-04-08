@@ -37,9 +37,10 @@ __all__ = [
 
 log = logging.getLogger(__name__)
 
-OVERWORLD = u.Dimension.OVERWORLD
-THE_NETHER = u.Dimension.THE_NETHER
-THE_END = u.Dimension.THE_END
+OVERWORLD = "minecraft:overworld"
+THE_NETHER = "minecraft:the_nether"
+THE_END = "minecraft:the_end"
+
 
 
 class WorldNotFoundError(u.MCError, FileNotFoundError):
@@ -77,13 +78,11 @@ class World:
         *,
         levelobj: level.Level | None = None,
         dimensions: dict | None = None,
-        players: list[p.PlayerFile] | None = None
+        players: list[p.PlayerFile] | None = None,
     ):
         self.path: u.AnyPath | None = path
         self.level: level.Level | None = levelobj
-        self.dimensions: dict[u.Dimension, dict[str, anvil.Regions]] = dict(
-            dimensions or {}
-        )
+        self.dimensions: dict[str, dict[str, anvil.Regions]] = dict(dimensions or {})
         self._players: list[p.PlayerFile] | None = players
 
     @property
@@ -96,7 +95,7 @@ class World:
 
     @name.setter
     def name(self, value):
-        self.level.data_root["LevelName"] = nbt.String(value)
+        self.level.data["LevelName"] = nbt.String(value)
 
     @property
     def regions(self):
@@ -117,7 +116,7 @@ class World:
     def player(self) -> p.Player | None:
         """The Single Player"""
         return self.level.player if self.level else None
-    
+
     @property
     def players(self) -> list[p.PlayerFile] | None:
         """All Players"""
@@ -127,7 +126,9 @@ class World:
     def chunk_count(self):  # FIXME!
         return sum(len(_) for _ in self.regions)
 
-    def get_chunks(self, progress=True, dimension=OVERWORLD, category="region"):
+    def get_chunks(
+        self, progress=True, dimension="minecraft:overworld", category="region"
+    ):
         """Yield all chunks in a given dimension and category, Overworld Regions by default"""
         regions = self.dimensions[dimension][category].values()
         if progress:
@@ -138,7 +139,7 @@ class World:
 
     def get_all_chunks(
         self, progress=True
-    ) -> abc.Iterator[tuple[u.Dimension, str, anvil.RegionChunk]]:
+    ) -> abc.Iterator[tuple[str, str, anvil.RegionChunk]]:
         """Yield (dimension, category, chunk) for all chunks
 
         In all dimensions and categories
@@ -276,20 +277,39 @@ class World:
 
         log.info("Loading World '%s': %s", self.name, self.path)
 
+        data_version = self.level.data.get("DataVersion", 0)
+
         # Dimensions and their Region files and associated data
         # /region, /DIM-1/region, /DIM1/region
         # TODO: Read custom dimensions! /dimensions/<prefix>/<name>/region
-        for dimension in u.Dimension:
-            self.dimensions[dimension] = {}
-            for category in self.categories:
-                self.dimensions[dimension][category] = anvil.Regions.load(
-                    self, dimension, category
-                )
+        if data_version < u.DATA_VERSION_26_1:
+            for dimension in u.Dimension:
+                self.dimensions[dimension.id()] = {}
+                for category in self.categories:
+                    self.dimensions[dimension.id()][category] = anvil.Regions.load(
+                        self, dimension, category
+                    )
 
-        # ...
+        for namespace in (pathlib.Path(path) / "dimensions").glob("*"):
+            if namespace.is_file():
+                continue
+
+            for id in namespace.glob("*"):
+                if id.is_file():
+                    continue
+
+                id = f"{namespace.name}:{id.name}"
+                self.dimensions[id] = {}
+                for category in self.categories:
+                    self.dimensions[id][category] = anvil.Regions.load(
+                        self, id, category
+                    )
 
         self._players = []
         for player in (self.path / "playerdata").glob("*.dat"):
+            self._players.append(p.PlayerFile.load(player))
+
+        for player in (self.path / "players" / "data").glob("*.dat"):
             self._players.append(p.PlayerFile.load(player))
 
         return self

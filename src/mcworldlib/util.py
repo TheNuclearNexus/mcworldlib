@@ -22,45 +22,47 @@ import collections.abc as abc
 import numpy
 
 __all__ = [
-    'MINECRAFT_SAVES_DIR',
-    'MCError',
-    'Dimension',
-    'AnyPath',
-    'TPos2D',
-    'TPos3D',
-    'BasePos',
-    'Pos',
-    'FlatPos',
-    'ChunkPos',
-    'RegionPos',
-    'pretty',
+    "MINECRAFT_SAVES_DIR",
+    "MCError",
+    "Dimension",
+    "AnyPath",
+    "TPos2D",
+    "TPos3D",
+    "BasePos",
+    "Pos",
+    "FlatPos",
+    "ChunkPos",
+    "RegionPos",
+    "pretty",
 ]
 
 # platform-dependent minecraft directory paths
-if platform.system() == 'Windows':
-    MINECRAFT_SAVES_DIR: str = os.path.expanduser('~/AppData/Roaming/.minecraft/saves')
+if platform.system() == "Windows":
+    MINECRAFT_SAVES_DIR: str = os.path.expanduser("~/AppData/Roaming/.minecraft/saves")
 else:
-    MINECRAFT_SAVES_DIR: str = os.path.expanduser('~/.minecraft/saves')
+    MINECRAFT_SAVES_DIR: str = os.path.expanduser("~/.minecraft/saves")
 
 CHUNK_GRID = (32, 32)  # (X, Z) chunks in each region file = 1024 chunks per region
 CHUNK_SIZE = (16, 16)  # (X, Z) blocks in each chunk
-SECTION_HEIGHT = 16    # chunk section height in blocks
+SECTION_HEIGHT = 16  # chunk section height in blocks
+ 
+DATA_VERSION_26_1 = 4786 # The data version of 26.1
 
 # General type aliases
 AnyPath = str | os.PathLike
 AnyFile = AnyPath | t.BinaryIO
 
 # Pos stuff...
-NumT = t.TypeVar('NumT', int, float)
-TPos:   't.TypeAlias' = tuple[NumT, ...]            # Any 2D/3D *Pos
-TPos2D: 't.TypeAlias' = tuple[int, int]             # FlatPos, ChunkPos, etc
-TPos3D: 't.TypeAlias' = tuple[float, float, float]  # Pos
+NumT = t.TypeVar("NumT", int, float)
+TPos: "t.TypeAlias" = tuple[NumT, ...]  # Any 2D/3D *Pos
+TPos2D: "t.TypeAlias" = tuple[int, int]  # FlatPos, ChunkPos, etc
+TPos3D: "t.TypeAlias" = tuple[float, float, float]  # Pos
 
 # Somewhat general, but mostly used only by LazyLoadMap
-T = t.TypeVar('T')
-KT = t.TypeVar('KT', bound=t.Hashable)
-VT = t.TypeVar('VT')
-Pos2DT = t.TypeVar('Pos2DT', bound=TPos2D)
+T = t.TypeVar("T")
+KT = t.TypeVar("KT", bound=t.Hashable)
+VT = t.TypeVar("VT")
+Pos2DT = t.TypeVar("Pos2DT", bound=TPos2D)
 LazyFileT = AnyPath | VT
 
 # To avoid importing nbt
@@ -73,6 +75,7 @@ class MCError(Exception):
     All modules in this package raise this (or a subclass) for all
     explicitly raised, business-logic, expected or handled exceptions
     """
+
     def __init__(self, msg: object = "", *args, errno: int = 0):
         super().__init__((str(msg) % args) if args else msg)
         self.errno = errno
@@ -85,22 +88,31 @@ class InvalidPath(MCError, ValueError):
 
 class Dimension(enum.Enum):
     # Changed from IDs to namespace in Minecraft 1.16 (2230 < DataVersion < 2586)
-    OVERWORLD  =  0
+    OVERWORLD = 0
     THE_NETHER = -1
-    THE_END    =  1
+    THE_END = 1
 
     # Aliases
-    NETHER     = -1
-    END        =  1
+    NETHER = -1
+    END = 1
 
     def subfolder(self):
-        return '' if self.name == 'OVERWORLD' else f'DIM{self.value}'
+        return "" if self.name == "OVERWORLD" else f"DIM{self.value}"
+
+    def id(self):
+        match self:
+            case Dimension.OVERWORLD:
+                return "minecraft:overworld"
+            case Dimension.THE_NETHER:
+                return "minecraft:the_nether"
+            case Dimension.THE_END:
+                return "minecraft:the_end"
 
     @classmethod
-    def from_nbt(cls, dimension) -> 'Dimension':
+    def from_nbt(cls, dimension) -> "Dimension":
         if isinstance(dimension, int):
             return cls(dimension)
-        return cls[dimension.split(':')[-1].upper()]  # Ewww!
+        return cls[dimension.split(":")[-1].upper()]  # Ewww!
 
 
 class BasePos(TPos):
@@ -109,6 +121,7 @@ class BasePos(TPos):
     typing.NamedTuple has issues with multiple inheritance, so formally this is
     not their superclass.
     """
+
     @property
     def as_integers(self) -> TPos[int]:
         # actually t.Union['Pos', 'ChunkPos', 'RegionPos'], and only used by Pos
@@ -120,21 +133,22 @@ class BasePos(TPos):
         return ".".join(map(str, self))
 
     @staticmethod
-    def from_xz_tags(cls, parent: CompoundT[int], suffix: str = 'Pos') -> TPos2D:
+    def from_xz_tags(cls, parent: CompoundT[int], suffix: str = "Pos") -> TPos2D:
         """Read from an NBT Compound containing x<suffix> and z<suffix> coord tags"""
         # tag: nbt.Compound[str, nbt.Int]
         # Not worth parametrizing ('x', 'z') for now
         # https://github.com/JetBrains/intellij-community/pull/1655
         # noinspection PyTypeChecker
-        return cls(int(parent['x' + suffix]),
-                   int(parent['z' + suffix]))
+        return cls(int(parent["x" + suffix]), int(parent["z" + suffix]))
         # return cls(*(int(tag[f'{_}{suffix}']) for _ in ('x', 'z')))
 
     @staticmethod  # actually classmethod
-    def from_array_tag(cls,
-                       tag: CompoundT[abc.Iterable[NumT]],
-                       name: str = 'Position',
-                       cast: abc.Callable[[t.Any], NumT] = int) -> TPos:
+    def from_array_tag(
+        cls,
+        tag: CompoundT[abc.Iterable[NumT]],
+        name: str = "Position",
+        cast: abc.Callable[[t.Any], NumT] = int,
+    ) -> TPos:
         """Read from an NBT Compound <tag> containing a coords List/Array tag named <name>"""
         # tag: nbt.Compound[str, nbt.IntArray]
         # https://github.com/JetBrains/intellij-community/pull/1655
@@ -148,11 +162,12 @@ class BasePos(TPos):
         # __repr__ works for __str__ too only because tuple does not define __str__
         if isinstance(width, int):
             width = (width,) * len(self)
-        return '(' + ','.join(f"{int(c): {w}}" for c, w in zip(self, width)) + ')'
+        return "(" + ",".join(f"{int(c): {w}}" for c, w in zip(self, width)) + ")"
 
 
 class Pos(t.NamedTuple):  # TPos3D
     """(x, y, z) tuple of absolute world coordinates, with helpful conversions"""
+
     x: float
     y: float
     z: float
@@ -161,47 +176,48 @@ class Pos(t.NamedTuple):  # TPos3D
     __repr__ = functools.partialmethod(BasePos.__repr__, width=(5, 3, 5))
 
     @property
-    def as_yzx(self) -> TPos3D: return self.y, self.x, self.z  # section block notation
+    def as_yzx(self) -> TPos3D:
+        return self.y, self.x, self.z  # section block notation
 
     @property
-    def as_xzy(self) -> TPos3D: return self.x, self.z, self.y  # height last
+    def as_xzy(self) -> TPos3D:
+        return self.x, self.z, self.y  # height last
 
     @property
     def as_section_block(self) -> TPos3D:  # TPos3D[int] if it were parametrized
         ipos = self.as_integers  # Required by mod
-        return (ipos.y % SECTION_HEIGHT,
-                ipos.z % CHUNK_SIZE[1],
-                ipos.x % CHUNK_SIZE[0])
+        return (ipos.y % SECTION_HEIGHT, ipos.z % CHUNK_SIZE[1], ipos.x % CHUNK_SIZE[0])
 
     @property
     def section(self) -> int:
         return int(self.y // SECTION_HEIGHT)
 
     @property
-    def column(self) -> 'FlatPos':
+    def column(self) -> "FlatPos":
         return FlatPos(int(self.x), int(self.z))
 
     @property
-    def offset(self) -> 'FlatPos':
+    def offset(self) -> "FlatPos":
         """(xc, zc) position coordinates relative to its chunk"""
         return self.column.offset
 
     @property
-    def chunk(self) -> 'ChunkPos':
+    def chunk(self) -> "ChunkPos":
         return ChunkPos(*(c // s for c, s in zip(self.column, CHUNK_SIZE)))
 
     @property
-    def region(self) -> 'RegionPos':
+    def region(self) -> "RegionPos":
         """(rx, rz) absolute coordinates of the region containing this position"""
         return self.chunk.region
 
     @classmethod
     def from_tag(cls, tag):
-        return BasePos.from_array_tag(cls, tag, name='Pos', cast=float)
+        return BasePos.from_array_tag(cls, tag, name="Pos", cast=float)
 
 
 class FlatPos(t.NamedTuple):  # TPos2D
     """(x, z) tuple of integer coordinates, absolute or offset (relative to chunk)"""
+
     x: int
     z: int
 
@@ -209,35 +225,37 @@ class FlatPos(t.NamedTuple):  # TPos2D
     __repr__ = functools.partialmethod(BasePos.__repr__, width=5)
 
     @property
-    def offset(self) -> 'FlatPos':
+    def offset(self) -> "FlatPos":
         """(xc, zc) position coordinates relative to its chunk"""
         return self.__class__(*(c % s for c, s in zip(self, CHUNK_SIZE)))
 
 
 class RegionPos(t.NamedTuple):  # TPos2D
     """(rx, rz) tuple of region coordinates"""
+
     rx: int
     rz: int
 
     filepart = BasePos.filepart
     __repr__ = functools.partialmethod(BasePos.__repr__, width=3)
 
-    def to_chunk(self, offset: TPos2D = (0, 0)) -> 'ChunkPos':
+    def to_chunk(self, offset: TPos2D = (0, 0)) -> "ChunkPos":
         return ChunkPos(*(s * g + o for s, g, o in zip(self, CHUNK_GRID, offset)))
 
 
 class ChunkPos(t.NamedTuple):  # TPos2D
     """(cx, cz) tuple of chunk coordinates, absolute or offset (relative to region)"""
+
     cx: int
     cz: int
 
     filepart = BasePos.filepart
     __repr__ = functools.partialmethod(BasePos.__repr__, width=4)
-    from_xz_tags   = classmethod(BasePos.from_xz_tags)
+    from_xz_tags = classmethod(BasePos.from_xz_tags)
     from_array_tag = classmethod(BasePos.from_array_tag)
 
     @property
-    def offset(self) -> 'ChunkPos':
+    def offset(self) -> "ChunkPos":
         """(cxr, czr) chunk position coordinates relative to its region.
 
         If you also need region coordinates, consider using .region_and_offset()
@@ -255,7 +273,7 @@ class ChunkPos(t.NamedTuple):  # TPos2D
         return RegionPos(*(c // g for c, g in zip(self, CHUNK_GRID)))
 
     @property
-    def region_and_offset(self) -> tuple[RegionPos, 'ChunkPos']:
+    def region_and_offset(self) -> tuple[RegionPos, "ChunkPos"]:
         """((rx, rz), (cxr, czr)) region and chunk offset coordinates of this chunk"""
         region, chunk = zip(*(divmod(c, g) for c, g in zip(self, CHUNK_GRID)))
         return RegionPos(*region), self.__class__(*chunk)
@@ -263,12 +281,11 @@ class ChunkPos(t.NamedTuple):  # TPos2D
 
 class LazyLoadMap(abc.MutableMapping[KT, VT]):
     """Mapping of objects lazily loaded on access"""
-    __slots__ = (
-        '_items',
-    )
-    collective: str = 'items'  # Collective noun for the items, used in __repr__()
 
-    def __init__(self, items: 'LazyLoadMap | None' = None) -> None:
+    __slots__ = ("_items",)
+    collective: str = "items"  # Collective noun for the items, used in __repr__()
+
+    def __init__(self, items: "LazyLoadMap | None" = None) -> None:
         # As implementations use KT=TPos2D, no benefit in allowing **kwargs
         self._items: dict[KT, VT] = {}
         if items is not None:
@@ -293,11 +310,20 @@ class LazyLoadMap(abc.MutableMapping[KT, VT]):
         return value
 
     # ABC boilerplate
-    def __iter__(self):            return iter(self._items)
-    def __len__(self):             return len(self._items)
-    def __setitem__(self, key, v): self._items[key] = v
-    def __delitem__(self, key):    del self._items[key]
-    def __contains__(self, key):   return key in self._items  # optional
+    def __iter__(self):
+        return iter(self._items)
+
+    def __len__(self):
+        return len(self._items)
+
+    def __setitem__(self, key, v):
+        self._items[key] = v
+
+    def __delitem__(self, key):
+        del self._items[key]
+
+    def __contains__(self, key):
+        return key in self._items  # optional
 
     def pretty(self, indent=4):
         # Access self._items directly to avoid loading items
@@ -307,7 +333,7 @@ class LazyLoadMap(abc.MutableMapping[KT, VT]):
         return str(self._items)
 
     def __repr__(self):
-        return f'<{self.__class__.__name__}({len(self)} {self.collective})>'
+        return f"<{self.__class__.__name__}({len(self)} {self.collective})>"
 
 
 class LazyLoadFileMap(LazyLoadMap[Pos2DT, LazyFileT]):
@@ -323,7 +349,7 @@ def isodate(secs: int) -> str:
 
     Example: isodate(1234567890) -> '2009-02-13 21:31:30'
     """
-    return time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(secs))
+    return time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(secs))
 
 
 def now() -> int:
@@ -360,7 +386,7 @@ def numpy_fromfile(file: AnyFile, dtype=float, count: int = -1):
     try:
         return numpy.fromfile(file, dtype=dtype, count=count)
     except io.UnsupportedOperation as e:
-        if not (e.args and e.args[0] == 'fileno' and isinstance(file, io.IOBase)):
+        if not (e.args and e.args[0] == "fileno" and isinstance(file, io.IOBase)):
             raise  # Nothing I can do about it
         dtype = numpy.dtype(dtype)
         buffer = file.read(dtype.itemsize * count)

@@ -41,11 +41,11 @@ class Level(nbtlib.File):
         return self.root["Data"]
 
     @property
-    def player(self) -> nbt.Compound:
+    def player(self) -> player.Player:
         return self.data[self._paths["player"]]
 
     @player.setter
-    def player(self, value: nbt.Compound):
+    def player(self, value: player.Player):
         self.data[self._paths["player"]] = value
 
     @classmethod

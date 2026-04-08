@@ -372,8 +372,14 @@ class Regions(u.LazyLoadFileMap[u.RegionPos, RegionFile]):
         return region.pos, region
 
     @classmethod
-    def load(cls, world, dimension: u.Dimension, category: str) -> "Regions":
-        path = os.path.join(world.path, dimension.subfolder(), category)
+    def load(cls, world, dimension: u.Dimension|str, category: str) -> "Regions":
+        if isinstance(dimension, str):
+            subfolder = ["dimensions", *dimension.split(":")]
+        else:
+            subfolder = [dimension.subfolder()]
+
+
+        path = os.path.join(world.path, *subfolder, category)
         self = cls.load_from_path(path)
         self.world = world
         self.dimension = dimension
