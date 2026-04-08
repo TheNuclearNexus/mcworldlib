@@ -11,6 +11,8 @@ Exported items:
 import logging
 import typing as t
 
+import nbtlib
+
 from . import nbt
 from . import player
 
@@ -21,7 +23,7 @@ log = logging.getLogger(__name__)
 T = t.TypeVar("T", bound="Level")
 
 
-class Level(nbt.File):
+class Level(nbtlib.File):
     """level.dat file"""
 
     __slots__ = ("world",)
@@ -35,19 +37,20 @@ class Level(nbt.File):
         self.world = world
 
     @property
+    def data(self):
+        return self.root["Data"]
+
+    @property
     def player(self) -> nbt.Compound:
-        return self.data_root[self._paths["player"]]
+        return self.data[self._paths["player"]]
 
     @player.setter
     def player(self, value: nbt.Compound):
-        self.data_root[self._paths["player"]] = value
+        self.data[self._paths["player"]] = value
 
     @classmethod
     def load(cls, filename, **kwargs):
         return super().load(filename, gzipped=True, byteorder="big", **kwargs)
-    
-    def save(self, filename, **kwargs):
-        return super().save(filename, gzipped=True, byteorder="big", **kwargs)
 
     @classmethod
     def parse(cls: type[T], buff, *args, world=None, **kwargs) -> T:

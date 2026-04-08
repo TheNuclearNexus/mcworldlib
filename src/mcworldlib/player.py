@@ -10,6 +10,8 @@ Exported items:
 
 from pathlib import Path
 
+import nbtlib
+
 from . import nbt
 from . import util as u
 from . import level
@@ -43,7 +45,7 @@ class Player(nbt.Compound):
             self["Pos"], u.Dimension.from_nbt(self["Dimension"])
         )
 
-class PlayerFile(nbt.File):
+class PlayerFile(nbtlib.File):
     __slots__ = ("name", "level")
 
     def __init__(self, *args, level=None, **kwargs):
@@ -84,3 +86,4 @@ class PlayerFile(nbt.File):
         ):
             filename = Path(self.level.world.path) / "playerdata" / self.filename
         return super().save(filename, gzipped=gzipped, byteorder=byteorder)
+
