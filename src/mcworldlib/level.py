@@ -60,9 +60,7 @@ class Level(nbtlib.File):
         # Can't rely on Compound.parse() to pass args to init()
         self.world = world
 
-        try:
+        if self.player:
             self.player = player.Player(self.player, level=self)
-        except KeyError:
-            log.warning("Level has no Player, possibly malformed: %s", self.filename)
 
         return self
